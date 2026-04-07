@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
     View,
     Text,
@@ -12,7 +12,7 @@ import {
     Dimensions,
     StatusBar
 } from 'react-native';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -22,6 +22,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useAuth } from './_layout';
 import AnimatedBackground from '../components/AnimatedBackground';
 import Fireworks from '../components/Fireworks';
+import { useNotifications } from '../hooks/useNotifications';
 import { Issue } from '@/types'; // Ensure you have this type or define it
 
 const { width } = Dimensions.get('window');
@@ -35,11 +36,23 @@ export default function IssueDetailsScreen() {
     const [issue, setIssue] = useState<Issue | null>(null);
     const [loading, setLoading] = useState(true);
 
+    useFocusEffect(
+        useCallback(() => {
+            if (id) {
+                fetchIssueDetails();
+            }
+        }, [id])
+    );
+
+    // Real-time update listener for students viewing the screen
+    const { notification: latestNotification } = useNotifications(user?.id);
+
     useEffect(() => {
-        if (id) {
+        if (latestNotification && id) {
+            console.log('Real-time push received, refreshing issue details...');
             fetchIssueDetails();
         }
-    }, [id]);
+    }, [latestNotification]);
 
     const fetchIssueDetails = async () => {
         try {
@@ -163,6 +176,31 @@ export default function IssueDetailsScreen() {
                         </Text>
                     </Animated.View>
 
+                    {/* Progress Section */}
+                    {((issue.progressSteps && issue.progressSteps.length > 0) || issue.completionPercentage > 0) && (
+                        <Animated.View entering={FadeInUp.delay(350).springify()} style={{ marginTop: 24 }}>
+                            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>PROGRESS ({issue.completionPercentage || 0}%)</Text>
+                            
+                            {/* Progress Bar */}
+                            <View style={[styles.progressBarContainer, { backgroundColor: colors.borderMuted }]}>
+                                <View style={[styles.progressBarFill, { width: `${issue.completionPercentage || 0}%`, backgroundColor: colors.primary }]} />
+                            </View>
+
+                            {/* Progress Steps */}
+                            {issue.progressSteps && issue.progressSteps.map((step, index) => (
+                                <View key={index} style={styles.stepContainer}>
+                                    <View style={[styles.stepDot, { backgroundColor: colors.primary }]} />
+                                    <View style={styles.stepContent}>
+                                        <Text style={[styles.stepDesc, { color: colors.text }]}>{step.stepDescription}</Text>
+                                        <Text style={[styles.stepTime, { color: colors.textSecondary }]}>
+                                            {new Date(step.completedAt).toLocaleString()}
+                                        </Text>
+                                    </View>
+                                </View>
+                            ))}
+                        </Animated.View>
+                    )}
+
                     {/* Warden Resolution Section */}
                     {isResolved && (
                         <Animated.View entering={FadeInUp.delay(400).springify()} style={[styles.resolutionCard, {
@@ -189,6 +227,25 @@ export default function IssueDetailsScreen() {
                     {/* Warden Action Button */}
                     {user?.role === 'warden' && !isResolved && (
                         <Animated.View entering={FadeInUp.delay(500).springify()} style={styles.actionContainer}>
+                            
+                            <TouchableOpacity
+                                style={[styles.resolveBtn, { marginBottom: 15 }]}
+                                activeOpacity={0.9}
+                                onPress={() => {
+                                    router.push({ pathname: '/update-progress', params: { id: String(issue._id), currentPercentage: String(issue.completionPercentage || 0) } } as any);
+                                }}
+                            >
+                                <LinearGradient
+                                    colors={['#3B82F6', '#2563EB']}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 0 }}
+                                    style={styles.gradientBtn}
+                                >
+                                    <Text style={styles.resolveBtnText}>UPDATE PROGRESS</Text>
+                                    <Ionicons name="refresh" size={20} color="#fff" />
+                                </LinearGradient>
+                            </TouchableOpacity>
+
                             <TouchableOpacity
                                 style={styles.resolveBtn}
                                 activeOpacity={0.9}
@@ -241,5 +298,12 @@ const styles = StyleSheet.create({
     actionContainer: { marginTop: 40 },
     resolveBtn: { borderRadius: 20, overflow: 'hidden', shadowColor: '#10B981', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
     gradientBtn: { height: 60, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10 },
-    resolveBtnText: { color: '#fff', fontSize: 16, fontWeight: '900', letterSpacing: 1 }
+    resolveBtnText: { color: '#fff', fontSize: 16, fontWeight: '900', letterSpacing: 1 },
+    progressBarContainer: { height: 8, borderRadius: 4, width: '100%', overflow: 'hidden', marginBottom: 16 },
+    progressBarFill: { height: '100%' },
+    stepContainer: { flexDirection: 'row', marginBottom: 12, alignItems: 'flex-start' },
+    stepDot: { width: 10, height: 10, borderRadius: 5, marginTop: 6, marginRight: 12 },
+    stepContent: { flex: 1 },
+    stepDesc: { fontSize: 15, fontWeight: '700', marginBottom: 2 },
+    stepTime: { fontSize: 12, opacity: 0.7 }
 });

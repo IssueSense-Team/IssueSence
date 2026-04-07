@@ -8,6 +8,12 @@ const IssueSchema = new mongoose.Schema({
   description: { type: String, required: false, trim: true },
   photoBase64: { type: String, required: false },
   status: { type: String, enum: ['pending', 'in_progress', 'resolved'], default: 'pending' },
+  // Progress details
+  progressSteps: [{
+    stepDescription: { type: String, required: true },
+    completedAt: { type: Date, default: Date.now }
+  }],
+  completionPercentage: { type: Number, default: 0, min: 0, max: 100 },
   // Resolution details
   resolutionPhotoBase64: { type: String, required: false },
   resolutionRemark: { type: String, required: false },

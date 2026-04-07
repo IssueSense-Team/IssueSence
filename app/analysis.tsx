@@ -122,17 +122,17 @@ export default function AnalysisScreen() {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(true);
 
-    const data: ChartData[] = useMemo(() => [
-        { label: 'Mon', solveCount: 4, avgTime: 5.2, fullLabel: 'Monday' },
-        { label: 'Tue', solveCount: 7, avgTime: 4.8, fullLabel: 'Tuesday' },
-        { label: 'Wed', solveCount: 5, avgTime: 6.1, fullLabel: 'Wednesday' },
-        { label: 'Thu', solveCount: 8, avgTime: 3.9, fullLabel: 'Thursday' },
-        { label: 'Fri', solveCount: 6, avgTime: 4.5, fullLabel: 'Friday' },
-        { label: 'Sat', solveCount: 3, avgTime: 2.1, fullLabel: 'Saturday' },
-        { label: 'Sun', solveCount: 2, avgTime: 1.5, fullLabel: 'Sunday' },
-    ], []);
+    const [chartData, setChartData] = useState<ChartData[]>([
+        { label: 'Mon', solveCount: 0, avgTime: 0, fullLabel: 'Monday' },
+        { label: 'Tue', solveCount: 0, avgTime: 0, fullLabel: 'Tuesday' },
+        { label: 'Wed', solveCount: 0, avgTime: 0, fullLabel: 'Wednesday' },
+        { label: 'Thu', solveCount: 0, avgTime: 0, fullLabel: 'Thursday' },
+        { label: 'Fri', solveCount: 0, avgTime: 0, fullLabel: 'Friday' },
+        { label: 'Sat', solveCount: 0, avgTime: 0, fullLabel: 'Saturday' },
+        { label: 'Sun', solveCount: 0, avgTime: 0, fullLabel: 'Sunday' },
+    ]);
 
-    const [activeIndex, setActiveIndex] = useState(data.length - 1);
+    const [activeIndex, setActiveIndex] = useState(6); // Default to Sunday
     const [stats, setStats] = useState({
         total: 0,
         pending: 0,
@@ -165,6 +165,9 @@ export default function AnalysisScreen() {
                     inProgress: data.inProgress || 0,
                     avgResolutionTime: data.avgResolutionTime || 0
                 });
+                if (data.weeklyData) {
+                    setChartData(data.weeklyData);
+                }
             }
         } catch (error) {
             console.log('Error fetching analysis stats:', error);
@@ -173,7 +176,7 @@ export default function AnalysisScreen() {
         }
     };
 
-    const activeData = data[activeIndex];
+    const activeData = chartData[activeIndex] || chartData[0];
 
     if (isLoading) {
         return (
@@ -224,7 +227,7 @@ export default function AnalysisScreen() {
                         </View>
 
                         <ActiveBarChart
-                            data={data}
+                            data={chartData}
                             colors={colors}
                             isDark={isDark}
                             activeIndex={activeIndex}

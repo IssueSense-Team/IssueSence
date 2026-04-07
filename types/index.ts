@@ -22,6 +22,8 @@ export interface Issue {
     description: string;
     photoBase64?: string;
     status: 'pending' | 'in_progress' | 'resolved';
+    progressSteps?: { stepDescription: string; completedAt: string }[];
+    completionPercentage?: number;
     resolutionPhotoBase64?: string;
     resolutionRemark?: string;
     resolvedAt?: string;

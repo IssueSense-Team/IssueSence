@@ -165,23 +165,49 @@ router.get('/stats', async (req, res) => {
     const resolved = await Issue.countDocuments({ ...filter, status: 'resolved' });
     const inProgress = await Issue.countDocuments({ ...filter, status: 'in_progress' });
 
-    // Calculate Average Resolution Time
+    // Calculate Average Resolution Time & Weekly breakdown
     const resolvedIssues = await Issue.find({ ...filter, status: 'resolved', resolvedAt: { $exists: true } });
     let avgResolutionTime = 0;
+    
+    const weeklyDataTemplate = [
+        { label: 'Mon', solveCount: 0, avgTime: 0, fullLabel: 'Monday', totalTime: 0 },
+        { label: 'Tue', solveCount: 0, avgTime: 0, fullLabel: 'Tuesday', totalTime: 0 },
+        { label: 'Wed', solveCount: 0, avgTime: 0, fullLabel: 'Wednesday', totalTime: 0 },
+        { label: 'Thu', solveCount: 0, avgTime: 0, fullLabel: 'Thursday', totalTime: 0 },
+        { label: 'Fri', solveCount: 0, avgTime: 0, fullLabel: 'Friday', totalTime: 0 },
+        { label: 'Sat', solveCount: 0, avgTime: 0, fullLabel: 'Saturday', totalTime: 0 },
+        { label: 'Sun', solveCount: 0, avgTime: 0, fullLabel: 'Sunday', totalTime: 0 },
+    ];
+
     if (resolvedIssues.length > 0) {
       const totalTime = resolvedIssues.reduce((acc, issue) => {
-        const resolutionTime = new Date(issue.resolvedAt) - new Date(issue.createdAt);
-        return acc + resolutionTime;
+        const resolutionTimeHours = (new Date(issue.resolvedAt) - new Date(issue.createdAt)) / (1000 * 60 * 60);
+        
+        const dayIndex = new Date(issue.resolvedAt).getDay(); // Sunday = 0
+        const mappedIndex = dayIndex === 0 ? 6 : dayIndex - 1; // Map to Mon=0 ... Sun=6
+        
+        weeklyDataTemplate[mappedIndex].solveCount += 1;
+        weeklyDataTemplate[mappedIndex].totalTime += resolutionTimeHours;
+        
+        return acc + resolutionTimeHours;
       }, 0);
-      avgResolutionTime = Math.round(totalTime / resolvedIssues.length / (1000 * 60 * 60)); // in hours
+      avgResolutionTime = Math.round(totalTime / resolvedIssues.length); // in hours
     }
+
+    const weeklyData = weeklyDataTemplate.map(day => ({
+        label: day.label,
+        solveCount: day.solveCount,
+        avgTime: day.solveCount > 0 ? parseFloat((day.totalTime / day.solveCount).toFixed(1)) : 0,
+        fullLabel: day.fullLabel
+    }));
 
     res.json({
       total,
       pending,
       resolved,
       inProgress,
-      avgResolutionTime
+      avgResolutionTime,
+      weeklyData
     });
   } catch (err) {
     console.error('Stats error:', err);
@@ -241,6 +267,65 @@ router.post('/issues/:id/resolve', async (req, res) => {
 
   } catch (err) {
     console.error('Resolve error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /issues/:id/progress - update progress
+router.post('/issues/:id/progress', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { stepDescription, completionPercentage, wardenId } = req.body;
+
+    if (!stepDescription || completionPercentage === undefined) {
+      return res.status(400).json({ error: 'Values missing', details: 'Step description and percentage are required.' });
+    }
+
+    const issue = await Issue.findById(id);
+    if (!issue) {
+      return res.status(404).json({ error: 'Not found', details: 'Issue not found' });
+    }
+
+    // Add progress step
+    issue.progressSteps.push({
+      stepDescription,
+      completedAt: new Date()
+    });
+    
+    issue.completionPercentage = completionPercentage;
+    
+    if (issue.status === 'pending') {
+      issue.status = 'in_progress';
+    }
+
+    await issue.save();
+
+    // Notify student via App Notification
+    if (issue.userId) {
+      try {
+        await Notification.create({
+          userId: issue.userId,
+          issueId: issue._id,
+          title: `Progress Update: ${issue.name}`,
+          message: `Your issue is now ${completionPercentage}% complete: ${stepDescription}`,
+          type: 'issue_progress'
+        });
+
+        // Send Push Notification
+        await sendPushNotification(
+          issue.userId,
+          `Progress Update: ${issue.name}`,
+          `Your issue is now ${completionPercentage}% complete: ${stepDescription}`
+        );
+      } catch (nErr) {
+        console.error('Failed to notify student:', nErr);
+      }
+    }
+
+    res.json({ message: 'Progress updated successfully', issue });
+
+  } catch (err) {
+    console.error('Progress update error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });

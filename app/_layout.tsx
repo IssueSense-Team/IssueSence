@@ -166,6 +166,12 @@ export default function RootLayout() {
             <Stack.Screen name="settings" options={{ headerShown: false }} />
             <Stack.Screen name="support-center" options={{ headerShown: false }} />
             <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+            <Stack.Screen name="issue-details" options={{ headerShown: false }} />
+            <Stack.Screen name="resolve-issue" options={{ headerShown: false }} />
+            <Stack.Screen name="update-progress" options={{ headerShown: false }} />
+            <Stack.Screen name="warden-reports" options={{ headerShown: false }} />
+            <Stack.Screen name="my-reports" options={{ headerShown: false }} />
+            <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
           </Stack>
           <StatusBar style="auto" />
         </ThemeProviderNative>

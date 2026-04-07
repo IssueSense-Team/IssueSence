@@ -183,8 +183,15 @@ function ReportCard({ item, isResolved, colors, isDark, onPress }: ReportCardPro
                             </View>
                         </View>
                     </View>
-                    <View style={[styles.badge, { backgroundColor: isResolved ? colors.successBackground : colors.warningBackground }]}>
-                        <Text style={[styles.badgeText, { color: isResolved ? colors.success : colors.warning }]}>{item.status.toUpperCase()}</Text>
+                    <View style={{ alignItems: 'flex-end' }}>
+                        <View style={[styles.badge, { backgroundColor: isResolved ? colors.successBackground : colors.warningBackground, marginBottom: 4 }]}>
+                            <Text style={[styles.badgeText, { color: isResolved ? colors.success : colors.warning }]}>{item.status.toUpperCase()}</Text>
+                        </View>
+                        {item.status === 'in_progress' && (
+                            <Text style={{ fontSize: 11, fontWeight: '800', color: colors.primary }}>
+                                {item.completionPercentage || 0}% DONE
+                            </Text>
+                        )}
                     </View>
                 </View>
 
