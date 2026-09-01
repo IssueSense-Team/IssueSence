@@ -1,0 +1,1 @@
+Jira SCRUM-7 GitHub integration test.
